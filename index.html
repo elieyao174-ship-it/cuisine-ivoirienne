@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Maquis Express - Cuisine ivoirienne</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;background:#2b1a0e;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#fff}
+#app{max-width:480px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;background:linear-gradient(#ffb347,#f57c00 35%,#6d3b12 36%,#4a2810);position:relative;overflow:hidden}
+#top{display:flex;justify-content:space-between;padding:10px 12px;background:rgba(0,0,0,.35);font-weight:700;font-size:16px}
+#top span{background:rgba(0,0,0,.3);padding:4px 10px;border-radius:14px}
+#custs{display:flex;gap:8px;padding:10px;height:150px}
+.cust{flex:1;background:rgba(255,255,255,.92);border-radius:14px;color:#3b2412;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;min-width:0}
+.cust.empty{background:rgba(255,255,255,.15)}
+.cust .av{font-size:34px;line-height:1}
+.cust .mood{font-size:16px}
+.cust .ord{font-size:26px;min-height:32px;letter-spacing:2px}
+.bar{width:90%;height:8px;background:#ddd;border-radius:6px;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;background:#4caf50;width:100%}
+#held{margin:0 10px;height:54px;border-radius:14px;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;gap:10px}
+#held b{font-size:32px}
+#stations{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px}
+.st{background:#fff3e0;border-radius:18px;color:#3b2412;display:flex;flex-direction:column;align-items:center;justify-content:center;border-bottom:6px solid #c77d2e;padding:6px;text-align:center}
+.st:active{transform:translateY(3px)}
+.st .e{font-size:48px;line-height:1}
+.st .n{font-weight:800;font-size:15px}
+.st .s{font-size:13px;margin-top:2px;min-height:18px}
+.st.ready{background:#c8e6c9;border-color:#2e7d32;animation:p .6s infinite alternate}
+.st.burnt{background:#ffcdd2;border-color:#c62828}
+@keyframes p{to{transform:scale(1.04)}}
+#ad{height:50px;margin:0 10px 8px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#c9a27a}
+#toast{position:absolute;left:50%;top:190px;transform:translateX(-50%);background:rgba(0,0,0,.75);padding:6px 14px;border-radius:18px;font-weight:700;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#ov{position:absolute;inset:0;background:rgba(20,10,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:14px}
+#ov h1{margin:0;font-size:30px}
+#ov p{margin:0;font-size:16px;line-height:1.4;max-width:320px}
+#ov button{font-size:20px;font-weight:800;padding:14px 34px;border:0;border-radius:30px;background:#4caf50;color:#fff;border-bottom:5px solid #2e7d32}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top"><span id="lvl">Niveau 1</span><span id="coins">💰 0 / 40</span><span id="time">⏱ 90</span></div>
+  <div id="custs"></div>
+  <div id="held"></div>
+  <div id="stations"></div>
+  <!-- Emplacement reserve pour la publicite Google AdSense plus tard -->
+  <div id="ad">Espace publicité</div>
+  <div id="toast"></div>
+  <div id="ov">
+    <h1>🍽️ Maquis Express</h1>
+    <p id="ovtxt">Sers les clients le plus vite possible ! Touche un plat pour le cuisiner, touche-le quand il est prêt pour le prendre, puis touche le client qui l'a commandé.</p>
+    <button id="btn">Jouer</button>
+  </div>
+</div>
+<script>
+var D={
+  alloco:{e:'🍌',n:'Alloco',cook:4,price:5},
+  poisson:{e:'🐟',n:'Poisson braisé',cook:7,price:12},
+  attieke:{e:'🍚',n:'Attiéké',cook:3,price:6},
+  garba:{e:'🍛',n:'Garba',cook:6,price:10}
+};
+var K=Object.keys(D);
+var GOALS=[40,70,100,140,190,250];
+var AV=['👩🏾','👨🏾','👵🏾','👴🏾','👦🏾','👧🏾','🧔🏾','👩🏾‍🦱'];
+var S=null, timer=null, best=1;
+try{best=parseInt(localStorage.getItem('maquis_best')||'1',10)||1}catch(e){}
+
+var $=function(id){return document.getElementById(id)};
+var custEls=[], stEls=[];
+
+function build(){
+  var c=$('custs'), s=$('stations');
+  for(var i=0;i<3;i++){
+    var d=document.createElement('div');
+    d.className='cust empty';
+    (function(i){d.onclick=function(){tapCust(i)}})(i);
+    c.appendChild(d);custEls.push(d);
+  }
+  K.forEach(function(k,i){
+    var d=document.createElement('div');
+    d.className='st';
+    d.onclick=function(){tapSt(i)};
+    s.appendChild(d);stEls.push(d);
+  });
+  $('held').onclick=function(){
+    if(S&&S.held){S.held=null;toast('Plat jeté 🗑️');ui();}
+  };
+}
+
+function toast(t){
+  var e=$('toast');e.textContent=t;e.style.opacity=1;
+  clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.opacity=0},1100);
+}
+
+function startLevel(l){
+  S={level:l,coins:0,time:90,held:null,cust:[null,null,null],
+     st:K.map(function(){return {s:'idle',t:0}}),spawnIn:0.5};
+  $('ov').classList.add('hide');
+  clearInterval(timer);
+  timer=setInterval(tick,100);
+  ui();
+}
+
+function spawn(){
+  var free=[];
+  S.cust.forEach(function(c,i){if(!c)free.push(i)});
+  if(!free.length)return;
+  var i=free[Math.floor(Math.random()*free.length)];
+  var maxItems=S.level>=3?3:(S.level>=2?2:1);
+  var n=1+Math.floor(Math.random()*maxItems);
+  var order=[];
+  for(var j=0;j<n;j++)order.push(K[Math.floor(Math.random()*K.length)]);
+  var pat=Math.max(18,38-S.level*3)+n*6;
+  S.cust[i]={order:order,pat:pat,max:pat,av:AV[Math.floor(Math.random()*AV.length)]};
+}
+
+function tick(){
+  var dt=0.1;
+  S.time-=dt;
+  S.spawnIn-=dt;
+  if(S.spawnIn<=0){spawn();S.spawnIn=Math.max(3,7-S.level*0.6)+Math.random()*2;}
+  S.cust.forEach(function(c,i){
+    if(!c)return;
+    c.pat-=dt;
+    if(c.pat<=0){
+      S.coins=Math.max(0,S.coins-2);
+      S.cust[i]=null;
+      toast('Client parti 😡 -2');
+    }
+  });
+  S.st.forEach(function(x,i){
+    var d=D[K[i]];
+    if(x.s==='cooking'){x.t+=dt;if(x.t>=d.cook){x.s='ready';x.t=0;}}
+    else if(x.s==='ready'){x.t+=dt;if(x.t>=6){x.s='burnt';x.t=0;}}
+  });
+  if(S.time<=0){endLevel();return;}
+  ui();
+}
+
+function tapSt(i){
+  if(!S)return;
+  var x=S.st[i], d=D[K[i]];
+  if(x.s==='idle'){x.s='cooking';x.t=0;}
+  else if(x.s==='ready'){
+    if(S.held){toast('Tes mains sont pleines !');return;}
+    S.held=K[i];x.s='idle';x.t=0;
+  }
+  else if(x.s==='burnt'){x.s='idle';x.t=0;toast('Plat brûlé jeté');}
+  ui();
+}
+
+function tapCust(i){
+  if(!S)return;
+  var c=S.cust[i];
+  if(!c)return;
+  if(!S.held){toast('Prends d\'abord un plat prêt');return;}
+  var idx=c.order.indexOf(S.held);
+  if(idx<0){toast('Ce client n\'a pas commandé ça');return;}
+  var price=D[S.held].price;
+  var tip=c.pat>c.max*0.5?Math.ceil(price*0.3):0;
+  S.coins+=price+tip;
+  toast('+'+(price+tip)+' 💰'+(tip?' (pourboire !)':''));
+  c.order.splice(idx,1);
+  S.held=null;
+  if(!c.order.length)S.cust[i]=null;
+  ui();
+}
+
+function ui(){
+  var goal=GOALS[Math.min(S.level-1,GOALS.length-1)]+Math.max(0,S.level-GOALS.length)*60;
+  S.goal=goal;
+  $('lvl').textContent='Niveau '+S.level;
+  $('coins').textContent='💰 '+S.coins+' / '+goal;
+  $('time').textContent='⏱ '+Math.max(0,Math.ceil(S.time));
+  $('held').innerHTML=S.held?('<b>'+D[S.held].e+'</b> '+D[S.held].n+' <span style="font-size:12px;opacity:.7">(toucher ici pour jeter)</span>'):'<span style="opacity:.7">Tes mains sont libres</span>';
+  S.cust.forEach(function(c,i){
+    var el=custEls[i];
+    if(!c){el.className='cust empty';el.innerHTML='';return;}
+    var r=c.pat/c.max;
+    var mood=r>0.6?'😀':(r>0.3?'😐':'😡');
+    var col=r>0.6?'#4caf50':(r>0.3?'#ffb300':'#e53935');
+    el.className='cust';
+    el.innerHTML='<div class="av">'+c.av+'</div><div class="mood">'+mood+'</div><div class="ord">'+c.order.map(function(k){return D[k].e}).join('')+'</div><div class="bar"><i style="width:'+(r*100)+'%;background:'+col+'"></i></div>';
+  });
+  S.st.forEach(function(x,i){
+    var d=D[K[i]], el=stEls[i], s='';
+    el.className='st';
+    if(x.s==='idle')s='Touche pour cuisiner';
+    else if(x.s==='cooking'){var p=Math.min(100,x.t/d.cook*100);s='<div class="bar" style="width:100%"><i style="width:'+p+'%;background:#ff9800"></i></div>';}
+    else if(x.s==='ready'){el.className='st ready';s='Prêt ! Touche ✅';}
+    else{el.className='st burnt';s='Brûlé 🔥 Touche';}
+    el.innerHTML='<div class="e">'+d.e+'</div><div class="n">'+d.n+'</div><div class="s">'+s+'</div>';
+  });
+}
+
+function endLevel(){
+  clearInterval(timer);
+  var win=S.coins>=S.goal;
+  var h=document.querySelector('#ov h1'), t=$('ovtxt'), b=$('btn');
+  if(win){
+    if(S.level+1>best){best=S.level+1;try{localStorage.setItem('maquis_best',String(best))}catch(e){}}
+    h.textContent='🎉 Bravo !';
+    t.textContent='Tu as gagné '+S.coins+' pièces. Le niveau '+(S.level+1)+' sera plus rapide, avec plus de clients et des commandes plus grosses !';
+    b.textContent='Niveau suivant';
+    b.onclick=function(){startLevel(S.level+1)};
+  }else{
+    h.textContent='😅 Raté';
+    t.textContent='Tu as '+S.coins+' pièces sur '+S.goal+'. Essaie encore, tu vas y arriver !';
+    b.textContent='Rejouer';
+    var l=S.level;
+    b.onclick=function(){startLevel(l)};
+  }
+  $('ov').classList.remove('hide');
+}
+
+build();
+$('btn').onclick=function(){startLevel(1)};
+if(best>1){
+  $('ovtxt').textContent='Sers les clients le plus vite possible ! Touche un plat pour le cuisiner, touche-le quand il est prêt pour le prendre, puis touche le client qui l\'a commandé. Ton meilleur niveau : '+best+'.';
+}
+</script>
+</body>
+</html>
