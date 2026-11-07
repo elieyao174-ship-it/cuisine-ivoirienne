@@ -26,6 +26,9 @@ html,body{margin:0;height:100%;background:#2b1a0e;font-family:-apple-system,Blin
 .st .e{font-size:48px;line-height:1}
 .st .n{font-weight:800;font-size:15px}
 .st .s{font-size:13px;margin-top:2px;min-height:18px}
+#stations.many .st .e{font-size:34px}
+#stations.many .st .n{font-size:13px}
+#stations.many .st .s{font-size:11px;min-height:14px}
 .st.ready{background:#c8e6c9;border-color:#2e7d32;animation:p .6s infinite alternate}
 .st.burnt{background:#ffcdd2;border-color:#c62828}
 @keyframes p{to{transform:scale(1.04)}}
@@ -58,9 +61,14 @@ var D={
   alloco:{e:'🍌',n:'Alloco',cook:4,price:5},
   poisson:{e:'🐟',n:'Poisson braisé',cook:7,price:12},
   attieke:{e:'🍚',n:'Attiéké',cook:3,price:6},
-  garba:{e:'🍛',n:'Garba',cook:6,price:10}
+  garba:{e:'🍛',n:'Garba',cook:6,price:10},
+  brochette:{e:'🍢',n:'Brochettes',cook:5,price:8},
+  bissap:{e:'🥤',n:'Bissap',cook:2,price:4},
+  kedjenou:{e:'🍗',n:'Kédjénou',cook:8,price:15},
+  foutou:{e:'🥘',n:'Foutou sauce',cook:7,price:13}
 };
 var K=Object.keys(D);
+function nbDishes(l){return l>=3?8:(l>=2?6:4);}
 var GOALS=[40,70,100,140,190,250];
 var AV=['👩🏾','👨🏾','👵🏾','👴🏾','👦🏾','👧🏾','🧔🏾','👩🏾‍🦱'];
 var S=null, timer=null, best=1;
@@ -110,7 +118,8 @@ function spawn(){
   var maxItems=S.level>=3?3:(S.level>=2?2:1);
   var n=1+Math.floor(Math.random()*maxItems);
   var order=[];
-  for(var j=0;j<n;j++)order.push(K[Math.floor(Math.random()*K.length)]);
+  var avail=nbDishes(S.level);
+  for(var j=0;j<n;j++)order.push(K[Math.floor(Math.random()*avail)]);
   var pat=Math.max(18,38-S.level*3)+n*6;
   S.cust[i]={order:order,pat:pat,max:pat,av:AV[Math.floor(Math.random()*AV.length)]};
 }
@@ -183,8 +192,12 @@ function ui(){
     el.className='cust';
     el.innerHTML='<div class="av">'+c.av+'</div><div class="mood">'+mood+'</div><div class="ord">'+c.order.map(function(k){return D[k].e}).join('')+'</div><div class="bar"><i style="width:'+(r*100)+'%;background:'+col+'"></i></div>';
   });
+  var nb=nbDishes(S.level);
+  $('stations').className=nb>4?'many':'';
   S.st.forEach(function(x,i){
     var d=D[K[i]], el=stEls[i], s='';
+    if(i>=nb){el.style.display='none';return;}
+    el.style.display='';
     el.className='st';
     if(x.s==='idle')s='Touche pour cuisiner';
     else if(x.s==='cooking'){var p=Math.min(100,x.t/d.cook*100);s='<div class="bar" style="width:100%"><i style="width:'+p+'%;background:#ff9800"></i></div>';}
@@ -201,7 +214,9 @@ function endLevel(){
   if(win){
     if(S.level+1>best){best=S.level+1;try{localStorage.setItem('maquis_best',String(best))}catch(e){}}
     h.textContent='🎉 Bravo !';
-    t.textContent='Tu as gagné '+S.coins+' pièces. Le niveau '+(S.level+1)+' sera plus rapide, avec plus de clients et des commandes plus grosses !';
+    var nxt=S.level+1, more='';
+    if(nbDishes(nxt)>nbDishes(S.level)){more=' Nouveaux plats débloqués : '+K.slice(nbDishes(S.level),nbDishes(nxt)).map(function(k){return D[k].e+' '+D[k].n}).join(' et ')+' !';}
+    t.textContent='Tu as gagné '+S.coins+' pièces. Le niveau '+nxt+' sera plus rapide, avec plus de clients et des commandes plus grosses.'+more;
     b.textContent='Niveau suivant';
     b.onclick=function(){startLevel(S.level+1)};
   }else{
